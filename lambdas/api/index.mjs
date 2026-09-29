@@ -54,6 +54,7 @@ export async function handler(event) {
     const body = event.body ? JSON.parse(event.body) : {}
     const turns = Array.isArray(body.messages) ? body.messages.slice(-12) : []
     const messages = turns.filter((turn) => (turn.role === 'user' || turn.role === 'assistant') && typeof turn.content === 'string').map((turn) => ({ role: turn.role, content: [{ text: turn.content.slice(0, 6000) }] }))
+    while (messages[0]?.role === 'assistant') messages.shift()
     if (!messages.length) return response(400, { message: 'A message is required' })
     const images = await imageBlocks(owner, body.imageKeys)
     if (images.length) messages[messages.length - 1].content.push(...images)
