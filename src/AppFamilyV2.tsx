@@ -44,12 +44,41 @@ function FamilyForm({ side, project, setProject }: { side: Side; project: Projec
   return <section className="form-card family-form"><div className="form-heading"><div><small>FAMILY</small><h3>{side === 'groom' ? '新郎側のご家族' : '新婦側のご家族'}</h3><p>紹介したい方だけを、順番も自由に登録できます。</p></div><button type="button" onClick={() => replace([...members, { id: crypto.randomUUID(), relation: '父', name: '', introduction: '' }])}>＋ 追加</button></div>{members.map((member, index) => <div className="member-row" key={member.id}><span>{String(index + 1).padStart(2, '0')}</span><select value={member.relation} onChange={(e) => replace(members.map((x) => x.id === member.id ? { ...x, relation: e.target.value } : x))}>{relations.map((relation) => <option key={relation}>{relation}</option>)}</select><input value={member.name} placeholder="お名前" onChange={(e) => replace(members.map((x) => x.id === member.id ? { ...x, name: e.target.value } : x))} /><textarea value={member.introduction} placeholder="趣味や人柄、ふたりとの関係" onChange={(e) => replace(members.map((x) => x.id === member.id ? { ...x, introduction: e.target.value } : x))} /><button type="button" className="delete" onClick={() => replace(members.filter((x) => x.id !== member.id))}>削除</button></div>)}</section>
 }
 
+type PageKind = 'cover' | 'welcome' | 'timeline' | 'menu' | 'profiles' | 'family' | 'story' | 'future' | 'venue' | 'thanks'
+const pagePrograms: Record<string, PageKind[]> = {
+  'botanical-brochure': ['cover', 'welcome', 'timeline', 'profiles', 'family', 'thanks'],
+  'modern-mizuhiki': ['cover', 'welcome', 'timeline', 'family', 'future', 'thanks'],
+  'restaurant-course': ['cover', 'menu', 'timeline', 'profiles', 'family', 'venue'],
+  'photo-journal': ['cover', 'story', 'profiles', 'family', 'future', 'thanks'],
+  'quiet-letter': ['cover', 'welcome', 'venue', 'thanks'],
+  'travel-notes': ['cover', 'story', 'timeline', 'venue', 'family', 'thanks'],
+  'komon-family': ['cover', 'welcome', 'family', 'future', 'thanks'],
+  handwritten: ['cover', 'profiles', 'story', 'family', 'timeline', 'thanks'],
+  'hotel-classic': ['cover', 'menu', 'welcome', 'profiles', 'family', 'thanks'],
+  'collage-book': ['cover', 'story', 'profiles', 'family', 'future', 'thanks'],
+  'gallery-zine': ['cover', 'story', 'profiles', 'family', 'venue'],
+  'watercolor-letter': ['cover', 'welcome', 'venue', 'family', 'thanks'],
+  'sunday-table': ['cover', 'menu', 'timeline', 'profiles', 'family'],
+  'nordic-guide': ['cover', 'venue', 'timeline', 'profiles', 'family'],
+  'family-times': ['cover', 'story', 'profiles', 'family', 'timeline', 'future'],
+}
+
 function Preview({ template, project }: { template: BookTemplate; project: Project }) {
   const family = (side: Side) => <div className="family-preview">{project.families[side].length ? project.families[side].map((member) => <div className="person-chip" key={member.id}><small>{member.relation}</small><strong>{member.name || 'お名前'}</strong><p>{member.introduction || '紹介文が入ります。'}</p></div>) : <p>ご家族を追加すると、ここに紹介が表示されます。</p>}</div>
   const profiles = <div className="profile-spread">{(['groom', 'bride'] as Side[]).map((side) => <div className="profile" key={side}><div className="photo">{project[side].photoUrl ? <img src={project[side].photoUrl} alt="" /> : <span>PHOTO</span>}</div><small>{side === 'groom' ? 'GROOM' : 'BRIDE'}</small><h3>{project[side].name || (side === 'groom' ? '新郎' : '新婦')}</h3><p>{project[side].profile || 'ここに自己紹介が入ります。'}</p></div>)}</div>
-  const guide = <div className="guide-content"><p className="lead">{text(project, 'greeting')}</p><div className="two-columns"><section><small>TIME LINE</small><h3>当日の流れ</h3><p>{text(project, 'schedule')}</p></section><section><small>MENU</small><h3>お品書き</h3><p>{text(project, 'menu')}</p></section></div></div>
-  const body = template.layout === 'menu' ? <><div className="menu-page"><small>AT {text(project, 'venue')}</small><h2>今日のお品書き</h2><p>{text(project, 'menu')}</p></div>{guide}</> : template.layout === 'album' ? <><div className="story-page"><small>OUR STORY</small><h2>ふたりの<br />小さな記録</h2><p>{text(project, 'story')}</p></div>{profiles}</> : template.layout === 'family-tree' ? <><div className="tree-page"><small>OUR FAMILIES</small><h2>これから、<br />どうぞよろしくお願いいたします。</h2><div className="tree-columns"><section><h3>新郎側</h3>{family('groom')}</section><section><h3>新婦側</h3>{family('bride')}</section></div></div>{guide}</> : template.layout === 'newspaper' ? <><div className="news-page"><small>THE FAMILY TIMES</small><h2>ふたりの<br />ニュース</h2><p>{text(project, 'story')}</p><div className="news-people">{profiles}</div></div><div className="family-page"><h2>PEOPLE WE LOVE</h2>{family('groom')}{family('bride')}</div></> : template.layout === 'brochure' ? <>{guide}<div className="family-page"><h2>ご家族のご紹介</h2><div className="two-columns"><section><h3>新郎側</h3>{family('groom')}</section><section><h3>新婦側</h3>{family('bride')}</section></div></div></> : <><div className="letter-page"><small>DEAR OUR FAMILY</small><h2>ご挨拶</h2><p>{text(project, 'greeting')}</p><hr /><p>{text(project, 'dressCode')}</p></div>{guide}</>
-  return <div className={`book ${template.id}`}><article className="page cover"><p className="cover-kicker">FAMILY MEETING</p><h1>{template.name}</h1><div className="cover-art" /><p>{text(project, 'date')}</p><p>{text(project, 'venue')}</p></article><article className="page">{body}</article></div>
+  const page = (kind: PageKind, index: number) => {
+    if (kind === 'cover') return <article className="page cover" key={kind}><p className="cover-kicker">FAMILY MEETING</p><h1>{template.name}</h1><div className="cover-art" /><p>{text(project, 'date')}</p><p>{text(project, 'venue')}</p></article>
+    if (kind === 'welcome') return <article className="page letter-page" key={kind}><small>DEAR OUR FAMILY</small><h2>ご挨拶</h2><p>{text(project, 'greeting')}</p><hr /><p>{text(project, 'dressCode')}</p></article>
+    if (kind === 'timeline') return <article className="page timeline-page" key={kind}><small>THE DAY / {String(index).padStart(2, '0')}</small><h2>今日の流れ</h2><p>{text(project, 'schedule')}</p><div className="timeline-line" /></article>
+    if (kind === 'menu') return <article className="page menu-page" key={kind}><small>AT {text(project, 'venue')}</small><h2>今日のお品書き</h2><p>{text(project, 'menu')}</p></article>
+    if (kind === 'profiles') return <article className="page profiles-page" key={kind}><small>ABOUT US</small><h2>ふたりのこと</h2>{profiles}</article>
+    if (kind === 'family') return <article className="page family-page" key={kind}><small>OUR FAMILIES</small><h2>ご家族のご紹介</h2><div className="two-columns"><section><h3>新郎側</h3>{family('groom')}</section><section><h3>新婦側</h3>{family('bride')}</section></div></article>
+    if (kind === 'story') return <article className="page story-page" key={kind}><small>OUR STORY</small><h2>ふたりの<br />小さな記録</h2><p>{text(project, 'story')}</p><div className="story-stamp">01<br />02<br />03</div></article>
+    if (kind === 'future') return <article className="page future-page" key={kind}><small>OUR NEXT CHAPTER</small><h2>これからのこと</h2><p>{text(project, 'gift')}</p><p>{text(project, 'message')}</p><div className="future-mark">∞</div></article>
+    if (kind === 'venue') return <article className="page venue-page" key={kind}><small>PLACE & ACCESS</small><h2>{text(project, 'venue')}</h2><p>{text(project, 'address')}</p><div className="map-grid"><i /><i /><i /><b>●</b></div></article>
+    return <article className="page thanks-page" key={kind}><small>WITH THANKS</small><h2>どうぞよろしく<br />お願いいたします。</h2><p>{text(project, 'message')}</p></article>
+  }
+  return <div className={`book ${template.id} format-${template.layout}`}>{(pagePrograms[template.id] || ['cover', 'welcome', 'profiles', 'family']).map(page)}</div>
 }
 
 function AppFamilyV2() {
