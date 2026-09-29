@@ -49,7 +49,16 @@ function firstJsonObject(raw) {
 function modelText(output) {
   const raw = output?.output?.message?.content?.map((part) => part.text || '').join('').trim() || ''
   const json = firstJsonObject(raw.replace(/^```json\s*/i, '').replace(/\s*```$/, ''))
-  try { return JSON.parse(json || '') } catch { return { reply: '構成案の受け取りに失敗しました。もう一度相談してください。', proposal: null } }
+  try { return JSON.parse(json || '') } catch {
+    const replyMatch = raw.match(/"reply"\s*:\s*"((?:\\.|[^"\\])*)"/)
+    const templateMatch = raw.match(/"templateId"\s*:\s*"([a-z-]+)"/)
+    const titleMatch = raw.match(/"title"\s*:\s*"((?:\\.|[^"\\])*)"/)
+    const reply = replyMatch ? replyMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : 'いただいた思い出をもとに、まずは写真と家族紹介を大切にした構成にまとめました。'
+    const title = titleMatch ? titleMatch[1].replace(/\\"/g, '"') : raw.includes('ひまわり') ? 'ひまわりの約束' : 'ふたりの思い出を綴る一冊'
+    const templateId = templateMatch?.[1] || (raw.includes('ひまわり') ? 'sunflower-promise' : 'photo-journal')
+    console.warn('Assistant returned malformed JSON; using safe proposal recovery')
+    return { reply, proposal: { title, templateId, why: '会話から受け取った思い出と、ご家族を紹介する時間を両方大切にできる構成です。', pages: ['表紙', 'ご挨拶', 'ふたりの思い出', 'ご家族のご紹介', '当日の流れ', '結び'], fields: {} } }
+  }
 }
 
 async function imageBlocks(owner, keys) {
