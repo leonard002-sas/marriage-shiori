@@ -3,14 +3,16 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime'
+import { BedrockRuntimeClient, ConverseCommand, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime'
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}))
 const s3 = new S3Client({})
 const bedrock = new BedrockRuntimeClient({})
+const imageBedrock = new BedrockRuntimeClient({ region: process.env.BEDROCK_IMAGE_REGION || 'us-west-2' })
 const tableName = process.env.PROJECTS_TABLE
 const assetsBucket = process.env.ASSETS_BUCKET
 const modelId = process.env.BEDROCK_MODEL_ID || 'amazon.nova-lite-v1:0'
+const imageModelId = process.env.BEDROCK_IMAGE_MODEL_ID || 'stability.stable-image-core-v1:1'
 
 const directionTool = {
   tools: [{ toolSpec: { name: 'create_booklet_direction', description: 'Create the complete, original art direction and page plan for one face-to-face family meeting booklet.', inputSchema: { json: {
@@ -100,6 +102,26 @@ export async function handler(event) {
   if (!owner) return response(401, { message: 'Authentication required' })
 
   const projectId = event.pathParameters?.projectId
+  if (event.requestContext.http.method === 'POST' && event.rawPath.endsWith('/generate-design')) {
+    const body = event.body ? JSON.parse(event.body) : {}
+    const design = body.design || {}
+    const motif = String(design.motif || '草花と小さな旅の記憶').slice(0, 300)
+    const direction = String(design.artDirection || '上質な和紙のしおりのための手描き装飾').slice(0, 600)
+    const prompt = `Create one refined editorial illustration for a Japanese family meeting wedding booklet. Motif: ${motif}. Art direction: ${direction}. Soft colored pencil and transparent watercolor, tactile handmade paper, elegant quiet composition, editorial negative space, no text, no letters, no logos, no people faces, no photorealism, no border.`
+    try {
+      const result = await imageBedrock.send(new InvokeModelCommand({ modelId: imageModelId, contentType: 'application/json', accept: 'application/json', body: JSON.stringify({ prompt, negative_prompt: 'text, letters, typography, watermark, logo, photorealism, portrait, face, hard computer graphics, plastic texture', aspect_ratio: '1:1', output_format: 'png', seed: Math.floor(Math.random() * 4294967295) }) }))
+      const payload = JSON.parse(new TextDecoder().decode(result.body))
+      const image = payload.images?.[0]
+      if (!image) throw new Error('No image returned')
+      const key = `${owner}/generated/${randomUUID()}.png`
+      await s3.send(new PutObjectCommand({ Bucket: assetsBucket, Key: key, ContentType: 'image/png', Body: Buffer.from(image, 'base64') }))
+      const downloadUrl = await getSignedUrl(s3, new GetObjectCommand({ Bucket: assetsBucket, Key: key }), { expiresIn: 900 })
+      return response(200, { key, downloadUrl })
+    } catch (error) {
+      console.error('Bedrock image generation error', error)
+      return response(503, { message: 'デザインアートを生成できませんでした。もう一度お試しください。' })
+    }
+  }
   if (event.requestContext.http.method === 'POST' && event.rawPath.endsWith('/assistant')) {
     const body = event.body ? JSON.parse(event.body) : {}
     const turns = Array.isArray(body.messages) ? body.messages.slice(-12) : []

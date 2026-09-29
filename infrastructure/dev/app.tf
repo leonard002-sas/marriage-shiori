@@ -126,7 +126,10 @@ resource "aws_iam_role_policy" "api_lambda" {
       {
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
-        Resource = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-lite-v1:0"
+        Resource = [
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-lite-v1:0",
+          "arn:aws:bedrock:us-west-2::foundation-model/stability.stable-image-core-v1:1"
+        ]
       }
     ]
   })
@@ -139,14 +142,16 @@ resource "aws_lambda_function" "api" {
   handler          = "index.handler"
   filename         = data.archive_file.api.output_path
   source_code_hash = data.archive_file.api.output_base64sha256
-  timeout          = 10
-  memory_size      = 128
+  timeout          = 60
+  memory_size      = 512
 
   environment {
     variables = {
       PROJECTS_TABLE = aws_dynamodb_table.projects.name
       ASSETS_BUCKET  = aws_s3_bucket.user_assets.bucket
       BEDROCK_MODEL_ID = "amazon.nova-lite-v1:0"
+      BEDROCK_IMAGE_MODEL_ID = "stability.stable-image-core-v1:1"
+      BEDROCK_IMAGE_REGION   = "us-west-2"
     }
   }
 }
@@ -226,6 +231,14 @@ resource "aws_apigatewayv2_route" "download_url" {
 resource "aws_apigatewayv2_route" "assistant" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /assistant"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+resource "aws_apigatewayv2_route" "generate_design" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /generate-design"
   target             = "integrations/${aws_apigatewayv2_integration.api.id}"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
   authorization_type = "JWT"
