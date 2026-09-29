@@ -115,7 +115,7 @@ resource "aws_iam_role_policy" "api_lambda" {
       },
       {
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Query"]
+        Action   = ["dynamodb:DeleteItem", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Query", "dynamodb:UpdateItem"]
         Resource = [aws_dynamodb_table.projects.arn, "${aws_dynamodb_table.projects.arn}/index/*"]
       },
       {
@@ -151,7 +151,7 @@ resource "aws_apigatewayv2_api" "api" {
 
   cors_configuration {
     allow_headers = ["authorization", "content-type"]
-    allow_methods = ["GET", "POST", "OPTIONS"]
+    allow_methods = ["DELETE", "GET", "POST", "PUT", "OPTIONS"]
     allow_origins = ["*"]
   }
 }

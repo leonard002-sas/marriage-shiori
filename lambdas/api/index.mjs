@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
+import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
@@ -79,6 +79,13 @@ export async function handler(event) {
     const result = await client.send(new GetCommand({ TableName: tableName, Key: { projectId } }))
     if (!result.Item || result.Item.userId !== owner) return response(404, { message: 'Project not found' })
     return response(200, result.Item)
+  }
+
+  if (event.requestContext.http.method === 'DELETE' && projectId) {
+    const current = await client.send(new GetCommand({ TableName: tableName, Key: { projectId } }))
+    if (!current.Item || current.Item.userId !== owner) return response(404, { message: 'Project not found' })
+    await client.send(new DeleteCommand({ TableName: tableName, Key: { projectId } }))
+    return response(200, { projectId })
   }
 
   return response(405, { message: 'Method not allowed' })
