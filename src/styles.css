@@ -12,3 +12,5 @@
 .auth-card .primary { margin-top: 12px; }
 .auth-message { margin-top: 14px; color: #a56f5b; font-size: 12px; }
 .auth-link { margin-top: 20px; border: 0; background: transparent; color: #a56f5b; font-size: 12px; }
+.print-button { border: 1px solid #d4c2b4; border-radius: 20px; background: #fffaf5; padding: 9px 14px; color: #765f52; font-size: 11px; }
+@media print { body { background: white; } .shell { padding: 0; } .shell > header, .intro, .editor-panel { display: none; } .layout { display: block; } .preview-panel { border: 0; padding: 0; position: static; } .preview-toolbar, .preview-panel > .heading { display: none; } .paper { margin: 0 auto; box-shadow: none; width: 210mm; height: 297mm; max-width: none; } }

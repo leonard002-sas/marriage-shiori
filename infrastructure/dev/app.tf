@@ -49,6 +49,17 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "user_assets" {
   }
 }
 
+resource "aws_s3_bucket_cors_configuration" "user_assets" {
+  bucket = aws_s3_bucket.user_assets.id
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["PUT", "GET", "HEAD"]
+    allowed_origins = ["https://${aws_cloudfront_distribution.frontend.domain_name}"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3600
+  }
+}
+
 resource "aws_dynamodb_table" "projects" {
   name         = "${local.name}-projects"
   billing_mode = "PAY_PER_REQUEST"
@@ -106,6 +117,11 @@ resource "aws_iam_role_policy" "api_lambda" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Query"]
         Resource = [aws_dynamodb_table.projects.arn, "${aws_dynamodb_table.projects.arn}/index/*"]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject"]
+        Resource = "${aws_s3_bucket.user_assets.arn}/*"
       }
     ]
   })
@@ -124,6 +140,7 @@ resource "aws_lambda_function" "api" {
   environment {
     variables = {
       PROJECTS_TABLE = aws_dynamodb_table.projects.name
+      ASSETS_BUCKET  = aws_s3_bucket.user_assets.bucket
     }
   }
 }
@@ -171,6 +188,30 @@ resource "aws_apigatewayv2_route" "projects" {
 resource "aws_apigatewayv2_route" "projects_collection" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /projects"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+resource "aws_apigatewayv2_route" "projects_list" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /projects"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+resource "aws_apigatewayv2_route" "upload_url" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /upload-url"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+resource "aws_apigatewayv2_route" "download_url" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /download-url"
   target             = "integrations/${aws_apigatewayv2_integration.api.id}"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
   authorization_type = "JWT"
