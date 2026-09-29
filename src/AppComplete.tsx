@@ -12,7 +12,7 @@ const templates = [
 
 const initialProject: Project = { groom: { name: '', profile: '' }, bride: { name: '', profile: '' }, template: 'warm' }
 
-function AuthScreen({ onLogin }: { onLogin: (token: string) => void }) {
+export function AuthScreen({ onLogin }: { onLogin: (token: string) => void }) {
   const [mode, setMode] = useState<'login' | 'signup' | 'confirm'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
