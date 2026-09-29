@@ -18,9 +18,10 @@ const assistantInstructions = `あなたは結婚の顔合わせしおりを一�
 デザインでは情報量より、ページの役割、読む順番、写真の扱い、余白、印刷した時の佇まいを大事にします。
 一度に質問しすぎず、次に決めるとよいことを一つか二つ尋ねてください。
 顔合わせの食事会向けなので、ユーザーが明示しない限り、招待状、席次表、ご祝儀、宿泊、引き出物、結婚式のゲスト紹介は提案しません。ページは4〜10ページ程度に絞り、会場案内、挨拶、ふたりの思い出、プロフィール、両家紹介、当日の流れ、結びの中から必要なものだけを選びます。
-templateIdには次のいずれかを入れてください: botanical-brochure, modern-mizuhiki, restaurant-course, photo-journal, quiet-letter, travel-notes, komon-family, handwritten, hotel-classic, collage-book, gallery-zine, watercolor-letter, sunday-table, nordic-guide, family-times, sunflower-promise。最も近いものを必ず一つ選んでください。
+既存テンプレートを選ばないでください。毎回、会話内容から新しい冊子を一冊だけ設計します。色替えや既存型の置換ではなく、紙面サイズ、配色、書体、モチーフ、余白、写真の役割、ページ順をその思い出のために決めます。
+proposal.designには、title、format（a5-portrait または a4-landscape）、palette（paper, ink, accent, soft の16進カラー）、typography（serif, sans, handwritten）、motif、artDirection、fields、pagesを入れます。pagesは4〜8個で、各要素は title、kind（cover, letter, memories, family, guide, closing）、layout（quiet, collage, ledger, postcard, menu, column）を持ちます。fieldsは date, venue, address, greeting, schedule, menu, story, message, dressCode, gift, proposal, pottery, ring, futurePlan, contact, childhood, conversation から必要なものだけを選びます。
 返答本文replyは200文字以内で、構成の要点と次に聞きたいことだけを書きます。JSONやtemplateIdやページ一覧をreplyに重複して書かないでください。ユーザーがアップロードしていない写真、架空のURL、勝手な日時・会の進行・家族の紹介文を作らないでください。
-出力は必ず一つのJSONオブジェクトだけにしてください。コードブロック、Markdown、JSONの前後の説明文は一切禁止です。形式は {"reply":"会話文", "proposal":{"title":"構成案の名前","templateId":"sunflower-promise等の既存ID","why":"理由","pages":["ページ名"],"fields":{"greeting":"提案文など、分かる項目だけ"}}} です。proposalは材料が少ない時も、仮案として作ってください。`
+出力は必ず一つのJSONオブジェクトだけにしてください。コードブロック、Markdown、JSONの前後の説明文は一切禁止です。形式は {"reply":"会話文", "proposal":{"title":"構成案の名前","why":"理由","pages":["ページ名"],"fields":{"greeting":"提案文など、分かる項目だけ"},"design":{"title":"冊子名","format":"a5-portrait","palette":{"paper":"#F7F1E8","ink":"#33433E","accent":"#CC8955","soft":"#DFE9D5"},"typography":"serif","motif":"ひまわりと陶器","artDirection":"紙面の説明","fields":["greeting"],"pages":[{"title":"表紙","kind":"cover","layout":"quiet"}]}}} です。proposalは材料が少ない時も、仮案として作ってください。`
 
 function response(statusCode, body) {
   return { statusCode, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }
@@ -51,13 +52,11 @@ function modelText(output) {
   const json = firstJsonObject(raw.replace(/^```json\s*/i, '').replace(/\s*```$/, ''))
   try { return JSON.parse(json || '') } catch {
     const replyMatch = raw.match(/"reply"\s*:\s*"((?:\\.|[^"\\])*)"/)
-    const templateMatch = raw.match(/"templateId"\s*:\s*"([a-z-]+)"/)
     const titleMatch = raw.match(/"title"\s*:\s*"((?:\\.|[^"\\])*)"/)
     const reply = replyMatch ? replyMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : 'いただいた思い出をもとに、まずは写真と家族紹介を大切にした構成にまとめました。'
     const title = titleMatch ? titleMatch[1].replace(/\\"/g, '"') : raw.includes('ひまわり') ? 'ひまわりの約束' : 'ふたりの思い出を綴る一冊'
-    const templateId = templateMatch?.[1] || (raw.includes('ひまわり') ? 'sunflower-promise' : 'photo-journal')
     console.warn('Assistant returned malformed JSON; using safe proposal recovery')
-    return { reply, proposal: { title, templateId, why: '会話から受け取った思い出と、ご家族を紹介する時間を両方大切にできる構成です。', pages: ['表紙', 'ご挨拶', 'ふたりの思い出', 'ご家族のご紹介', '当日の流れ', '結び'], fields: {} } }
+    return { reply, proposal: { title, why: '会話から受け取った思い出と、ご家族を紹介する時間を両方大切にできる構成です。', pages: ['表紙', 'ご挨拶', 'ふたりの思い出', 'ご家族のご紹介', '当日の流れ', '結び'], fields: {} } }
   }
 }
 
