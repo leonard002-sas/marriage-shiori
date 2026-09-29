@@ -122,6 +122,11 @@ resource "aws_iam_role_policy" "api_lambda" {
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:PutObject"]
         Resource = "${aws_s3_bucket.user_assets.arn}/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
+        Resource = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-lite-v1:0"
       }
     ]
   })
@@ -141,6 +146,7 @@ resource "aws_lambda_function" "api" {
     variables = {
       PROJECTS_TABLE = aws_dynamodb_table.projects.name
       ASSETS_BUCKET  = aws_s3_bucket.user_assets.bucket
+      BEDROCK_MODEL_ID = "amazon.nova-lite-v1:0"
     }
   }
 }
@@ -212,6 +218,14 @@ resource "aws_apigatewayv2_route" "upload_url" {
 resource "aws_apigatewayv2_route" "download_url" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /download-url"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+resource "aws_apigatewayv2_route" "assistant" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /assistant"
   target             = "integrations/${aws_apigatewayv2_integration.api.id}"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
   authorization_type = "JWT"
