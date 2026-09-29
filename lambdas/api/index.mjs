@@ -19,7 +19,8 @@ const assistantInstructions = `あなたは結婚の顔合わせしおりを一�
 一度に質問しすぎず、次に決めるとよいことを一つか二つ尋ねてください。
 顔合わせの食事会向けなので、ユーザーが明示しない限り、招待状、席次表、ご祝儀、宿泊、引き出物、結婚式のゲスト紹介は提案しません。ページは4〜10ページ程度に絞り、会場案内、挨拶、ふたりの思い出、プロフィール、両家紹介、当日の流れ、結びの中から必要なものだけを選びます。
 templateIdには次のいずれかを入れてください: botanical-brochure, modern-mizuhiki, restaurant-course, photo-journal, quiet-letter, travel-notes, komon-family, handwritten, hotel-classic, collage-book, gallery-zine, watercolor-letter, sunday-table, nordic-guide, family-times, sunflower-promise。最も近いものを必ず一つ選んでください。
-必ずJSONだけで返してください。形式は {"reply":"会話文", "proposal":{"title":"構成案の名前","templateId":"sunflower-promise等の既存IDまたは空文字","why":"理由","pages":["ページ名"],"fields":{"greeting":"提案文など、分かる項目だけ"}}} です。proposalは材料が少ない時も、仮案として作ってください。`
+返答本文replyは200文字以内で、構成の要点と次に聞きたいことだけを書きます。JSONやtemplateIdやページ一覧をreplyに重複して書かないでください。ユーザーがアップロードしていない写真、架空のURL、勝手な日時・会の進行・家族の紹介文を作らないでください。
+出力は必ず一つのJSONオブジェクトだけにしてください。コードブロック、Markdown、JSONの前後の説明文は一切禁止です。形式は {"reply":"会話文", "proposal":{"title":"構成案の名前","templateId":"sunflower-promise等の既存ID","why":"理由","pages":["ページ名"],"fields":{"greeting":"提案文など、分かる項目だけ"}}} です。proposalは材料が少ない時も、仮案として作ってください。`
 
 function response(statusCode, body) {
   return { statusCode, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }
@@ -29,10 +30,26 @@ function userId(event) {
   return event.requestContext?.authorizer?.jwt?.claims?.sub
 }
 
+function firstJsonObject(raw) {
+  const start = raw.indexOf('{')
+  if (start < 0) return null
+  let depth = 0
+  let quoted = false
+  let escaped = false
+  for (let index = start; index < raw.length; index += 1) {
+    const character = raw[index]
+    if (quoted) { if (escaped) escaped = false; else if (character === '\\') escaped = true; else if (character === '"') quoted = false; continue }
+    if (character === '"') { quoted = true; continue }
+    if (character === '{') depth += 1
+    if (character === '}') { depth -= 1; if (depth === 0) return raw.slice(start, index + 1) }
+  }
+  return null
+}
+
 function modelText(output) {
   const raw = output?.output?.message?.content?.map((part) => part.text || '').join('').trim() || ''
-  const json = raw.replace(/^```json\s*/i, '').replace(/\s*```$/, '')
-  try { return JSON.parse(json) } catch { return { reply: raw || 'うまく言葉をまとめられませんでした。もう一度教えてください。', proposal: null } }
+  const json = firstJsonObject(raw.replace(/^```json\s*/i, '').replace(/\s*```$/, ''))
+  try { return JSON.parse(json || '') } catch { return { reply: '構成案の受け取りに失敗しました。もう一度相談してください。', proposal: null } }
 }
 
 async function imageBlocks(owner, keys) {
@@ -59,7 +76,7 @@ export async function handler(event) {
     const images = await imageBlocks(owner, body.imageKeys)
     if (images.length) messages[messages.length - 1].content.push(...images)
     try {
-      const result = await bedrock.send(new ConverseCommand({ modelId, system: [{ text: assistantInstructions }], messages, inferenceConfig: { maxTokens: 1100, temperature: 0.7 } }))
+      const result = await bedrock.send(new ConverseCommand({ modelId, system: [{ text: assistantInstructions }], messages, inferenceConfig: { maxTokens: 700, temperature: 0.35 } }))
       return response(200, modelText(result))
     } catch (error) {
       console.error('Bedrock assistant error', error)
