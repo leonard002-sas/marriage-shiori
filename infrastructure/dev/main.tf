@@ -200,6 +200,18 @@ resource "aws_codebuild_project" "build" {
     image           = "aws/codebuild/standard:7.0"
     type            = "LINUX_CONTAINER"
     privileged_mode = false
+    environment_variable {
+      name  = "VITE_COGNITO_USER_POOL_ID"
+      value = aws_cognito_user_pool.users.id
+    }
+    environment_variable {
+      name  = "VITE_COGNITO_CLIENT_ID"
+      value = aws_cognito_user_pool_client.web.id
+    }
+    environment_variable {
+      name  = "VITE_API_ENDPOINT"
+      value = aws_apigatewayv2_api.api.api_endpoint
+    }
   }
 }
 
