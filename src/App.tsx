@@ -46,6 +46,8 @@ function AuthScreen({ onLogin }: { onLogin: (token: string) => void }) {
 
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem('marriage-shiori-id-token'))
+  const [saving, setSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
   const [project, setProject] = useState<Project>({
     groom: { name: '', profile: '' },
     bride: { name: '', profile: '' },
@@ -61,11 +63,39 @@ function App() {
     if (file) setProject((current) => ({ ...current, [person]: { ...current[person], photoUrl: URL.createObjectURL(file) } }))
   }
 
+  const saveProject = async () => {
+    if (!token) return
+    setSaving(true)
+    setSaveMessage('')
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/projects`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(project),
+      })
+      if (response.status === 401) {
+        localStorage.removeItem('marriage-shiori-id-token')
+        setToken(null)
+        return
+      }
+      if (!response.ok) throw new Error('保存に失敗しました。')
+      const saved = await response.json()
+      setSaveMessage(`保存しました（ID: ${saved.projectId.slice(0, 8)}…）`)
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : '保存に失敗しました。')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (!token) return <AuthScreen onLogin={(nextToken) => { localStorage.setItem('marriage-shiori-id-token', nextToken); setToken(nextToken) }} />
 
   return (
     <main className="shell">
-      <header><div className="logo">M</div><div><small>WEDDING MEETING SHIORI</small><h1>顔合わせのしおり</h1></div><button className="save" onClick={() => { localStorage.removeItem('marriage-shiori-id-token'); setToken(null) }}>ログアウト</button></header>
+      <header><div className="logo">M</div><div><small>WEDDING MEETING SHIORI</small><h1>顔合わせのしおり</h1></div><span className="save-message">{saveMessage}</span><button className="save" onClick={saveProject} disabled={saving}>{saving ? '保存中…' : '保存する'}</button><button className="logout" onClick={() => { localStorage.removeItem('marriage-shiori-id-token'); setToken(null) }}>ログアウト</button></header>
       <section className="intro"><small>STEP 01 / 03</small><h2>ふたりのことを教えてください</h2><p>顔合わせの日に、お互いの家族へ渡す小さなしおりを作ります。</p></section>
       <div className="layout">
         <section className="panel">
