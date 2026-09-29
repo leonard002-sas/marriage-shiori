@@ -4,7 +4,7 @@ import { AuthScreen } from './AppComplete'
 type Side = 'groom' | 'bride'
 type Person = { name: string; profile: string; photoKey?: string; photoUrl?: string }
 type FamilyMember = { id: string; relation: string; name: string; introduction: string }
-type Field = 'date' | 'venue' | 'address' | 'greeting' | 'schedule' | 'menu' | 'story' | 'message' | 'dressCode' | 'gift'
+type Field = 'date' | 'venue' | 'address' | 'greeting' | 'schedule' | 'menu' | 'story' | 'message' | 'dressCode' | 'gift' | 'proposal' | 'pottery'
 type BookTemplate = { id: string; name: string; genre: string; description: string; layout: 'brochure' | 'menu' | 'album' | 'family-tree' | 'guide' | 'newspaper'; fields: Field[]; pages: string[] }
 type Project = { template?: string; groom: Person; bride: Person; content: Record<Field, string>; families: Record<Side, FamilyMember[]> }
 
@@ -13,6 +13,7 @@ const fields: Record<Field, { label: string; placeholder: string; rows?: number 
   greeting: { label: 'ご挨拶', placeholder: '本日はお集まりいただき、ありがとうございます。', rows: 4 }, schedule: { label: '当日の流れ', placeholder: '11:30　はじまりのご挨拶\n12:00　お食事・ご歓談\n14:00　記念撮影', rows: 5 },
   menu: { label: 'お品書き', placeholder: '季節の前菜\n本日のお魚料理\nお肉料理\nデザート', rows: 5 }, story: { label: 'ふたりのストーリー', placeholder: '出会い／お付き合い／プロポーズなど、ふたりらしい出来事', rows: 5 },
   message: { label: 'ご家族へのメッセージ', placeholder: 'これからどうぞよろしくお願いいたします。', rows: 4 }, dressCode: { label: '当日のご案内', placeholder: 'お車でお越しの方へ／服装について など', rows: 3 }, gift: { label: '手土産・記念品', placeholder: '本日の記念に…', rows: 3 },
+  proposal: { label: 'ひまわり畑でのプロポーズ', placeholder: '場所、日付、その日に交わした言葉、心に残った景色を綴ります。', rows: 5 }, pottery: { label: '陶芸体験の思い出', placeholder: '作ったもの、うまくできなかったこと、二人で笑ったことを綴ります。', rows: 5 },
 }
 
 const templates: BookTemplate[] = [
@@ -31,6 +32,7 @@ const templates: BookTemplate[] = [
   { id: 'sunday-table', name: 'Sunday Table', genre: 'カジュアル食卓', description: 'あたたかな食卓と、みんなで囲む時間のために。', layout: 'menu', fields: ['date', 'venue', 'menu', 'schedule', 'message'], pages: ['表紙', 'お品書き', '今日の流れ', 'ご家族紹介'] },
   { id: 'nordic-guide', name: 'North Light', genre: '北欧ミニマル', description: '淡い色と幾何学で、軽やかに案内するしおり。', layout: 'guide', fields: ['date', 'venue', 'schedule', 'address', 'greeting'], pages: ['表紙', 'ご案内', 'タイムライン', 'ご家族紹介'] },
   { id: 'family-times', name: 'The Family Times', genre: 'ヴィンテージ新聞', description: 'ふたりと家族のニュースを読むように楽しむ。', layout: 'newspaper', fields: ['date', 'venue', 'story', 'greeting', 'schedule', 'gift'], pages: ['一面', 'ふたりのニュース', '家族欄', '当日案内'] },
+  { id: 'sunflower-promise', name: 'ひまわりの約束', genre: '思い出を綴じるA5冊子', description: 'ひまわり畑のプロポーズと陶芸の一日を、やわらかな絵とともに残す。', layout: 'album', fields: ['date', 'venue', 'greeting', 'proposal', 'pottery', 'message'], pages: ['ひまわりの表紙', 'ご挨拶', 'プロポーズ', '陶芸の一日', 'ふたり', 'ご家族紹介', '結び'] },
 ]
 
 const blank = (): Project => ({ groom: { name: '', profile: '' }, bride: { name: '', profile: '' }, content: Object.fromEntries(Object.keys(fields).map((key) => [key, ''])) as Record<Field, string>, families: { groom: [], bride: [] } })
@@ -44,7 +46,7 @@ function FamilyForm({ side, project, setProject }: { side: Side; project: Projec
   return <section className="form-card family-form"><div className="form-heading"><div><small>FAMILY</small><h3>{side === 'groom' ? '新郎側のご家族' : '新婦側のご家族'}</h3><p>紹介したい方だけを、順番も自由に登録できます。</p></div><button type="button" onClick={() => replace([...members, { id: crypto.randomUUID(), relation: '父', name: '', introduction: '' }])}>＋ 追加</button></div>{members.map((member, index) => <div className="member-row" key={member.id}><span>{String(index + 1).padStart(2, '0')}</span><select value={member.relation} onChange={(e) => replace(members.map((x) => x.id === member.id ? { ...x, relation: e.target.value } : x))}>{relations.map((relation) => <option key={relation}>{relation}</option>)}</select><input value={member.name} placeholder="お名前" onChange={(e) => replace(members.map((x) => x.id === member.id ? { ...x, name: e.target.value } : x))} /><textarea value={member.introduction} placeholder="趣味や人柄、ふたりとの関係" onChange={(e) => replace(members.map((x) => x.id === member.id ? { ...x, introduction: e.target.value } : x))} /><button type="button" className="delete" onClick={() => replace(members.filter((x) => x.id !== member.id))}>削除</button></div>)}</section>
 }
 
-type PageKind = 'cover' | 'welcome' | 'timeline' | 'menu' | 'profiles' | 'family' | 'story' | 'future' | 'venue' | 'thanks'
+type PageKind = 'cover' | 'welcome' | 'timeline' | 'menu' | 'profiles' | 'family' | 'story' | 'memory' | 'future' | 'venue' | 'thanks'
 const pagePrograms: Record<string, PageKind[]> = {
   'botanical-brochure': ['cover', 'welcome', 'timeline', 'profiles', 'family', 'thanks'],
   'modern-mizuhiki': ['cover', 'welcome', 'timeline', 'family', 'future', 'thanks'],
@@ -61,6 +63,7 @@ const pagePrograms: Record<string, PageKind[]> = {
   'sunday-table': ['cover', 'menu', 'timeline', 'profiles', 'family'],
   'nordic-guide': ['cover', 'venue', 'timeline', 'profiles', 'family'],
   'family-times': ['cover', 'story', 'profiles', 'family', 'timeline', 'future'],
+  'sunflower-promise': ['cover', 'welcome', 'memory', 'profiles', 'family', 'thanks'],
 }
 
 function Preview({ template, project }: { template: BookTemplate; project: Project }) {
@@ -74,6 +77,7 @@ function Preview({ template, project }: { template: BookTemplate; project: Proje
     if (kind === 'profiles') return <article className="page profiles-page" key={kind}><small>ABOUT US</small><h2>ふたりのこと</h2>{profiles}</article>
     if (kind === 'family') return <article className="page family-page" key={kind}><small>OUR FAMILIES</small><h2>ご家族のご紹介</h2><div className="two-columns"><section><h3>新郎側</h3>{family('groom')}</section><section><h3>新婦側</h3>{family('bride')}</section></div></article>
     if (kind === 'story') return <article className="page story-page" key={kind}><small>OUR STORY</small><h2>ふたりの<br />小さな記録</h2><p>{text(project, 'story')}</p><div className="story-stamp">01<br />02<br />03</div></article>
+    if (kind === 'memory') return <article className="page memory-page" key={kind}><small>OUR MEMORIES</small><h2>ひまわりと、<br />土のぬくもり。</h2><section><h3>ひまわり畑でのプロポーズ</h3><p>{text(project, 'proposal')}</p></section><section><h3>陶芸体験の一日</h3><p>{text(project, 'pottery')}</p></section></article>
     if (kind === 'future') return <article className="page future-page" key={kind}><small>OUR NEXT CHAPTER</small><h2>これからのこと</h2><p>{text(project, 'gift')}</p><p>{text(project, 'message')}</p><div className="future-mark">∞</div></article>
     if (kind === 'venue') return <article className="page venue-page" key={kind}><small>PLACE & ACCESS</small><h2>{text(project, 'venue')}</h2><p>{text(project, 'address')}</p><div className="map-grid"><i /><i /><i /><b>●</b></div></article>
     return <article className="page thanks-page" key={kind}><small>WITH THANKS</small><h2>どうぞよろしく<br />お願いいたします。</h2><p>{text(project, 'message')}</p></article>
